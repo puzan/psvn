@@ -23,7 +23,7 @@
 ;;; Commentary
 
 ;; psvn.el is tested with GNU Emacs 21.3 on windows, debian linux,
-;; freebsd5, red hat el4, ubuntu intrepid with svn 1.5.1
+;; freebsd5, red hat el4, ubuntu 11.10 with svn 1.6.12
 
 ;; psvn.el needs at least svn 1.1.0
 ;; if you upgrade to a higher version, you need to do a fresh checkout
@@ -138,8 +138,6 @@
 
 ;; The latest version of psvn.el can be found at:
 ;;   http://www.xsteve.at/prg/emacs/psvn.el
-;; Or you can check it out from the subversion repository:
-;;   svn co http://svn.collab.net/repos/svn/trunk/contrib/client-side/emacs emacs-svn
 
 ;; TODO:
 ;; * shortcut for svn propset svn:keywords "Date" psvn.el
@@ -243,7 +241,7 @@
 
 ;;; Code:
 
-(defconst svn-psvn-revision "2012-03-02, 21:38:02" "The revision date of psvn.")
+(defconst svn-psvn-revision "2012-03-26, 21:23:49" "The revision date of psvn.")
 
 
 (require 'easymenu)
@@ -3758,6 +3756,11 @@ The version number of the client is cached in `svn-client-version'."
       (set-window-configuration window-conf)
       version-string))))
 
+(defun svn-compute-svn-client-version ()
+  "Ensure that svn-client-version is available."
+  (unless svn-client-version
+    (svn-status-version)))
+
 (defun svn-status-info ()
   "Run `svn info' on all selected files.
 See `svn-status-marked-files' for what counts as selected."
@@ -4209,8 +4212,7 @@ When called with a negative prefix argument, only update the selected files."
                              (format "Selected entries: Run svn update -r ")
                            (format "Directory: %s: Run svn update -r " default-directory))
                          (if selective-update "HEAD" nil)))))
-    (unless svn-client-version
-      (svn-status-version))
+    (svn-compute-svn-client-version)
     (if (and (<= (car svn-client-version) 1) (< (cadr svn-client-version) 5))
         (setq update-extra-arg (list "--non-interactive")) ;; svn version < 1.5
       (setq update-extra-arg (list "--accept" "postpone"))) ;; svn version >= 1.5
@@ -4573,9 +4575,12 @@ names are relative to the directory where `svn-status' was run."
               (progn
                 (message "Getting revision %s of %s, target: %s" revision file-name
                          (expand-file-name(concat default-directory file-name-with-revision)))
+                (svn-compute-svn-client-version)
                 (let ((content
                        (with-temp-buffer
-                         (if (string= revision "BASE")
+                         (if (and (and (<= (car svn-client-version) 1) (< (cadr svn-client-version) 7))
+                                  (string= revision "BASE"))
+                             ;; Shortcut: Take the file from the file system when using svn client < v1.7
                              (insert-file-contents (concat (svn-wc-adm-dir-name)
                                                            "/text-base/"
                                                            (file-name-nondirectory file-name)
@@ -6037,8 +6042,7 @@ Return nil, if not in a svn working copy."
     (if (not (eq base-dir 'not-found))
         base-dir
       ;; (message "calculating base-dir for %s" start-dir)
-      (unless svn-client-version
-        (svn-status-version))
+      (svn-compute-svn-client-version)
       (let* ((base-dir start-dir)
              (repository-root (svn-status-repo-for-path base-dir))
              (dot-svn-dir (concat base-dir (svn-wc-adm-dir-name)))
