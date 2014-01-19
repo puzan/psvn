@@ -4213,9 +4213,14 @@ When called with a negative prefix argument, only update the selected files."
                            (format "Directory: %s: Run svn update -r " default-directory))
                          (if selective-update "HEAD" nil)))))
     (svn-compute-svn-client-version)
-    (if (and (<= (car svn-client-version) 1) (< (cadr svn-client-version) 5))
-        (setq update-extra-arg (list "--non-interactive")) ;; svn version < 1.5
-      (setq update-extra-arg (list "--accept" "postpone"))) ;; svn version >= 1.5
+    (if (<= (car svn-client-version) 1)
+        (let ((minor-version (cadr svn-client-version)))
+          (cond ((< minor-version 5)
+                 (setq update-extra-arg (list "--non-interactive")))
+                ((>= minor-version 8)
+                 (setq update-extra-arg (list "--accept" "postpone"
+                                              "--force-interactive")))
+                (t (setq update-extra-arg (list "--accept" "postpone"))))))
     (if selective-update
         (progn
           (message "Running svn-update for %s" (svn-status-marked-file-names))
