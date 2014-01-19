@@ -1196,10 +1196,12 @@ If there is no .svn directory, examine if there is CVS and run
       (setq default-directory dir
             svn-status-remote (when arg t))
       (set-buffer cur-buf)
-      (if want-edit
-          (let ((svn-status-edit-svn-command t))
-            (svn-run t t 'status "status" svn-status-default-status-arguments status-option))
-        (svn-run t t 'status "status" svn-status-default-status-arguments status-option)))))
+
+      (let ((default-directory dir))
+        (if want-edit
+            (let ((svn-status-edit-svn-command t))
+              (svn-run t t 'status "status" svn-status-default-status-arguments status-option))
+          (svn-run t t 'status "status" svn-status-default-status-arguments status-option))))))
 
 (defun svn-status-this-directory (arg)
   "Run `svn-status' for the `default-directory'"
