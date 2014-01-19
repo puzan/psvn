@@ -1196,10 +1196,12 @@ If there is no .svn directory, examine if there is CVS and run
       (setq default-directory dir
             svn-status-remote (when arg t))
       (set-buffer cur-buf)
-      (if want-edit
-          (let ((svn-status-edit-svn-command t))
-            (svn-run t t 'status "status" svn-status-default-status-arguments status-option))
-        (svn-run t t 'status "status" svn-status-default-status-arguments status-option)))))
+
+      (let ((default-directory dir))
+        (if want-edit
+            (let ((svn-status-edit-svn-command t))
+              (svn-run t t 'status "status" svn-status-default-status-arguments status-option))
+          (svn-run t t 'status "status" svn-status-default-status-arguments status-option))))))
 
 (defun svn-status-this-directory (arg)
   "Run `svn-status' for the `default-directory'"
@@ -4213,9 +4215,14 @@ When called with a negative prefix argument, only update the selected files."
                            (format "Directory: %s: Run svn update -r " default-directory))
                          (if selective-update "HEAD" nil)))))
     (svn-compute-svn-client-version)
-    (if (and (<= (car svn-client-version) 1) (< (cadr svn-client-version) 5))
-        (setq update-extra-arg (list "--non-interactive")) ;; svn version < 1.5
-      (setq update-extra-arg (list "--accept" "postpone"))) ;; svn version >= 1.5
+    (if (<= (car svn-client-version) 1)
+        (let ((minor-version (cadr svn-client-version)))
+          (cond ((< minor-version 5)
+                 (setq update-extra-arg (list "--non-interactive")))
+                ((>= minor-version 8)
+                 (setq update-extra-arg (list "--accept" "postpone"
+                                              "--force-interactive")))
+                (t (setq update-extra-arg (list "--accept" "postpone"))))))
     (if selective-update
         (progn
           (message "Running svn-update for %s" (svn-status-marked-file-names))
